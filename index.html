@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scan médicaments</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Scan médicaments">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#ffffff;--fg:#111827;--card:#f1f5f3;--line:#b9c6bf;--accent:#0d5c46;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:background .25s,color .25s}
+body.red{background:#c62828;color:#fff}body.orange{background:#e65100;color:#fff}body.green{background:#2e7d32;color:#fff}
+main{max-width:520px;margin:0 auto;padding:20px;min-height:100%;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.7rem;margin:8px 0 0;color:var(--accent)}
+p{margin:0;line-height:1.45}
+.hint{opacity:1;color:#374151;font-size:1.05rem}
+body.red .hint,body.orange .hint,body.green .hint{color:inherit}
+.view{display:none;flex-direction:column;gap:16px;flex:1}
+.view.on{display:flex}
+.cam{position:relative;border-radius:18px;overflow:hidden;background:#111;aspect-ratio:1/1;border:2px solid var(--line)}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.frame{position:absolute;inset:18%;border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.ghost{position:absolute;inset:14%;width:72%;height:72%;opacity:.32;pointer-events:none}
+.thumb{width:100%;max-height:30vh;object-fit:cover;border-radius:14px;display:none;background:rgba(0,0,0,.2)}
+button{font:inherit;font-weight:600;font-size:1.1rem;border:0;border-radius:14px;padding:18px;cursor:pointer;background:var(--accent);color:#fff}
+body.red button,body.orange button,body.green button{background:#fff;color:#111}
+button.alt{background:#fff;color:var(--accent);border:2px solid var(--accent)}
+body.red button.alt,body.orange button.alt,body.green button.alt{background:transparent;color:#fff;border-color:#fff}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #ffc400;outline-offset:2px}
+.row{display:flex;gap:12px}.row button{flex:1}
+.big{font-size:5rem;line-height:1;text-align:center;margin-top:8vh}
+.verdict{font-size:1.9rem;font-weight:700;text-align:center}
+.info{background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.6);border-radius:14px;padding:14px 16px;display:grid;gap:4px;font-size:1.05rem}
+.q{font-size:1.8rem;font-weight:700;text-align:center;margin-top:10vh;color:var(--fg)}
+input{font:inherit;width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+details{border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:var(--card)}
+summary{cursor:pointer}
+.hlist{display:grid;gap:10px}
+.h-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-left:10px solid #999;border-radius:12px;padding:10px 6px 10px 12px}
+.h-item img{width:48px;height:48px;object-fit:cover;border-radius:8px}
+.h-item .t{flex:1;min-width:0;display:grid;gap:2px;font-size:.95rem}
+.h-item .t strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-del{padding:8px 12px;font-size:1.2rem;background:transparent;color:#b71c1c;border:0;border-radius:8px}
+#start{background:#1565c0;color:#fff}
+.err{color:#b71c1c;font-weight:700}
+</style>
+</head>
+<body>
+<main>
+ <section class="view on" id="v-scan">
+  <h1>Scanner un médicament</h1>
+  <p class="hint">Placez dans le cadre le petit carré de points (DataMatrix) imprimé sur la boîte, comme le modèle en transparence.</p>
+  <div class="cam"><video id="video" playsinline muted></video><div class="frame"><svg class="ghost" id="ghost" viewBox="0 0 12 12" aria-hidden="true"></svg></div></div>
+  <p id="camerr" class="err"></p>
+  <button id="start">Activer la caméra</button>
+  <button id="hist" class="alt">Historique des scans</button>
+  <details>
+   <summary>Saisir le code à la main</summary>
+   <p class="hint" style="margin:8px 0">Collez le contenu du code (ex. 01034009…17271130…).</p>
+   <input id="manual" placeholder="Contenu du DataMatrix" autocomplete="off">
+   <button id="go" style="margin-top:10px;width:100%">Vérifier</button>
+  </details>
+  <p class="hint" style="font-size:.85rem;text-align:center;margin-top:auto">Version 8</p>
+ </section>
+
+ <section class="view" id="v-hist">
+  <h1>Historique</h1>
+  <div id="h-list" class="hlist"></div>
+  <button id="h-clear" class="alt">Tout effacer</button>
+  <button id="h-back">Retour au scan</button>
+ </section>
+
+ <section class="view" id="v-load">
+  <p class="q" style="margin-top:20vh">Recherche du médicament et lecture de la notice…</p>
+ </section>
+
+ <section class="view" id="v-ask">
+  <p class="hint" id="ask-name" style="text-align:center"></p>
+  <p class="q" id="ask-q"></p>
+  <div class="row"><button id="yes">Oui</button><button id="no" class="alt">Non</button></div>
+ </section>
+
+ <section class="view" id="v-res">
+  <div class="big" id="r-icon"></div>
+  <div class="verdict" id="r-text"></div>
+  <img class="thumb" id="r-img" alt="Photo de la boîte scannée">
+  <div class="info" id="r-info"></div>
+  <button id="open-q" class="alt" style="display:none">Médicament non reconnu : sirop ou collyre déjà ouvert ?</button>
+  <button id="again" style="margin-top:auto">Scanner un autre médicament</button>
+ </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+// API de recherche du médicament par code CIP13 (modifiable)
+const API_URL = "https://medicaments-api.giygas.dev/v1/medicaments?cip=";
+const LIQUID = /sirop|buvable|collyre|goutte|suspension|solution|pommade|crème|\bgel\b|nasal|auricul|ophtalm|émulsion|lotion|inhal/i;
+const STRICT_LIQUID = /sirop|buvable|collyre|gouttes|suspension|ophtalm|nasal|auricul|pommade|crème|\bgel\b/i;
+
+const $ = id => document.getElementById(id);
+let reader = null, busy = false, drug = null, thumbSnap = null;
+// Monogramme DataMatrix en transparence (bords pleins à gauche/en bas, pointillés en haut/à droite)
+(function(){let s='',seed=7;const r=()=>(seed=(seed*37+11)%101)%2;
+for(let y=0;y<12;y++)for(let x=0;x<12;x++){
+ const on = x===0||y===11 || (y===0&&x%2===0) || (x===11&&y%2===1) || (x>0&&x<11&&y>0&&y<11&&r());
+ if(on) s+=`<rect x="${x}" y="${y}" width="1" height="1" fill="#fff"/>`;}
+$('ghost').innerHTML=s;})();
+function capture(){
+  thumbSnap=null;
+  const v=$('video'); if(!v.videoWidth) return null;
+  const w=480,h=Math.round(v.videoHeight*w/v.videoWidth),c=document.createElement('canvas');
+  c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
+  try{const t=document.createElement('canvas');t.width=96;t.height=96;const s=Math.min(v.videoWidth,v.videoHeight);t.getContext('2d').drawImage(v,(v.videoWidth-s)/2,(v.videoHeight-s)/2,s,s,0,0,96,96);thumbSnap=t.toDataURL('image/jpeg',.5);}catch(e){}
+  try{return c.toDataURL('image/jpeg',.7);}catch(e){return null;}
+}
+function askWord(name){
+  if(/collyre|ophtalm/i.test(name)) return 'Le collyre';
+  if(/sirop/i.test(name)) return 'Le sirop';
+  if(/buvable|suspension|solution|gouttes/i.test(name)) return 'Le flacon';
+  return 'Le médicament';
+}
+
+function show(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===id));}
+function setColor(c){document.body.className=c||'';}
+
+// ---------- Lecture du code GS1 ----------
+function parseGS1(raw){
+  let s = raw.replace(/[()]/g,'').replace(/^\]d2/,'');
+  const out = {}; let i = 0;
+  const fixed = {'01':14,'02':14,'11':6,'13':6,'15':6,'17':6};
+  while(i < s.length){
+    if(s[i]==='\x1d'){i++;continue;}
+    const ai = s.substr(i,2); i+=2;
+    if(fixed[ai]){out[ai]=s.substr(i,fixed[ai]); i+=fixed[ai];}
+    else{
+      let j=i; while(j<s.length && s[j]!=='\x1d') j++;
+      out[ai]=s.substring(i,j); i=j+1;
+      if(ai==='10' || ai==='21') { /* variable */ }
+    }
+  }
+  return out;
+}
+function parseExpiry(yymmdd){
+  if(!yymmdd||yymmdd.length!==6) return null;
+  const y=2000+ +yymmdd.slice(0,2), m=+yymmdd.slice(2,4), d=+yymmdd.slice(4,6);
+  if(m<1||m>12) return null;
+  const day = d===0 ? new Date(y,m,0).getDate() : d; // jour 00 = fin de mois
+  return new Date(y,m-1,day,23,59,59);
+}
+
+// ---------- Reconnaissance du médicament et lecture de la notice ----------
+const API_BASE = API_URL.split('/v1/')[0];
+async function getJSON(url, ms){
+  try{
+    const ctl = new AbortController(); const t=setTimeout(()=>ctl.abort(),ms);
+    const r = await fetch(url,{signal:ctl.signal}); clearTimeout(t);
+    return r.ok ? await r.json() : null;
+  }catch(e){ return null; }
+}
+async function lookup(cip){
+  const j = await getJSON(API_URL+encodeURIComponent(cip),6000);
+  if(!j) return null;
+  const forms=[], names=[]; let cis='';
+  (function walk(o){
+    if(Array.isArray(o)) return o.forEach(walk);
+    if(o && typeof o==='object') for(const k in o){
+      const v=o[k];
+      if(v!==null && typeof v==='object'){ walk(v); continue; }
+      if(/^(cis|code_?cis)$/i.test(k) && !cis && /^\d{8}$/.test(String(v))) cis=String(v);
+      else if(typeof v==='string'){ if(/forme/i.test(k)) forms.push(v); else if(/denomination|nom$/i.test(k)) names.push(v); }
+    }
+  })(j);
+  const name = names[0]||'';
+  if(!forms.length && !name) return null;
+  return {name, cis, liquid: LIQUID.test(forms.join(' ')+' '+name), known:true};
+}
+function allText(j){
+  const out=[];
+  (function walk(o){
+    if(typeof o==='string') out.push(o.replace(/<[^>]+>/g,' '));
+    else if(Array.isArray(o)) o.forEach(walk);
+    else if(o && typeof o==='object') Object.values(o).forEach(walk);
+  })(j);
+  return out.join('\n').replace(/[\u00a0\u202f]/g,' ');
+}
+// Cherche la durée de conservation après ouverture dans le texte d'une notice
+const NUMW={un:1,une:1,deux:2,trois:3,quatre:4,six:6};
+function findAfterOpening(text){
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/);
+  let best=null, immediate=null;
+  for(const s0 of sentences){
+    const s=s0.trim(); if(s.length<8||s.length>600) continue;
+    if(!/ouverture|ouvert|reconstitu|entam|première utilisation|premiere utilisation/i.test(s)) continue;
+    if(/avant (la )?(première )?(ouverture|reconstitution)/i.test(s) && !/apr[eè]s/i.test(s)) continue;
+    const m = s.match(/(\d+(?:[.,]\d+)?|\bun\b|\bune\b|\bdeux\b|\btrois\b|\bquatre\b|\bsix\b)\s*(jours?|semaines?|mois|heures?)/i);
+    if(m){
+      const n = /^\d/.test(m[1]) ? parseFloat(m[1].replace(',','.')) : NUMW[m[1].toLowerCase()];
+      const u = m[2].toLowerCase();
+      const days = /^jour/.test(u)?n : /^semaine/.test(u)?n*7 : /^mois/.test(u)?n*30 : n/24;
+      let label = `${m[1]} ${u}`;
+      if(!best || days<best.days) best={days,label,sentence:s};
+    } else if(/imm[ée]diatement|usage unique|jet[ée]e? apr[eè]s (usage|utilisation)|ne doit pas être conservé/i.test(s) && /ouverture|entam/i.test(s)){
+      immediate = immediate || {days:0,label:'',sentence:s};
+    }
+  }
+  return best || immediate;
+}
+async function afterOpening(cis){
+  if(!cis) return null;
+  const [nt, rcp] = await Promise.all([
+    getJSON(`${API_BASE}/v1/medicaments/${cis}/notice`,10000),
+    getJSON(`${API_BASE}/v1/medicaments/${cis}/rcp`,10000)
+  ]);
+  return (nt && findAfterOpening(allText(nt))) || (rcp && findAfterOpening(allText(rcp))) || null;
+}
+
+// ---------- Flux ----------
+let step = 1;
+async function handle(raw){
+  if(busy) return; busy=true;
+  const snap = capture();
+  stopCam();
+  const d = parseGS1(raw);
+  const gtin = d['01']||'';
+  const cip = gtin.length===14 ? gtin.slice(1) : gtin;
+  const exp = parseExpiry(d['17']);
+  if(!exp){busy=false; $('camerr').textContent="Ce code ne contient pas de date de péremption. Réessayez.";show('v-scan');return;}
+  show('v-load');
+  const info = cip ? await lookup(cip) : null;
+  const expired = exp < new Date();
+  const ao = (!expired && info && info.cis) ? await afterOpening(info.cis) : null;
+  drug = {cip, exp, lot:d['10']||'', name: info&&info.name||'', liquid: info?info.liquid:null, img:snap, thumb:thumbSnap, ao};
+  // la question n'est posée que si le médicament le nécessite (forme liquide ou durée après ouverture dans la notice)
+  if(expired){ result('closed'); return; } // périmé : verdict direct, sans question
+  if(drug.liquid===true || ao){
+    step=1;
+    $('ask-name').textContent = drug.name;
+    $('ask-q').textContent = (ao&&!drug.liquid ? 'Le médicament' : askWord(drug.name))+' est-il ouvert ?';
+    show('v-ask'); setColor('');
+  } else result('closed');
+}
+// état : 'closed' | 'open-ok' | 'open-bad' | 'open-unknown'
+function result(state){
+  const now = new Date(), inMonth = new Date(now); inMonth.setMonth(inMonth.getMonth()+1);
+  let c, icon, text;
+  if(state==='open-bad'){c='red';icon='✕';text = drug.ao&&drug.ao.days===0 ? 'À jeter : ne se conserve pas après ouverture' : 'À jeter : ouvert depuis trop longtemps';}
+  else if(state==='open-unknown'){c='red';icon='✕';text='Ouvert : à jeter par prudence';}
+  else if(drug.exp < now){c='red';icon='✕';text='Périmé';}
+  else if(drug.exp <= inMonth){c='orange';icon='!';text='Périme dans moins d’un mois';}
+  else {c='green';icon='✓';text='Utilisable';}
+  saveHistory(c,text);
+  setColor(c); $('r-icon').textContent=icon; $('r-text').textContent=text;
+  const f = drug.exp.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const lines=[]; if(drug.name) lines.push(['strong',drug.name]);
+  lines.push(['span','Péremption : '+f]);
+  if(state==='open-ok' && drug.ao) lines.push(['span','Ouvert depuis moins de '+drug.ao.label+' (durée après ouverture, d’après la notice)']);
+  else if(state==='open-bad' && drug.ao && drug.ao.days>0) lines.push(['span','Durée après ouverture : '+drug.ao.label+' (notice)']);
+  else if(state==='open-unknown') lines.push(['span','Durée après ouverture non trouvée : voir la notice ou demander au pharmacien']);
+  if(drug.cip) lines.push(['span','CIP : '+drug.cip]);
+  if(drug.lot) lines.push(['span','Lot : '+drug.lot]);
+  const box=$('r-info'); box.textContent='';
+  lines.forEach(([t,v])=>{const e=document.createElement(t);e.textContent=v;box.appendChild(e);});
+  if(drug.img){$('r-img').src=drug.img;$('r-img').style.display='block';}else $('r-img').style.display='none';
+  // médicament non reconnu : option discrète, pas de question imposée
+  $('open-q').style.display = (drug.liquid===null && !drug.ao && state==='closed') ? 'block' : 'none';
+  show('v-res'); busy=false;
+}
+
+// ---------- Historique (stocké sur le téléphone) ----------
+const HKEY='scanmed-history', COL={red:'#c62828',orange:'#e65100',green:'#2e7d32'};
+function loadHist(){try{return JSON.parse(localStorage.getItem(HKEY)||'[]');}catch(e){return [];}}
+function storeHist(a){
+  for(let n=a.length;n>=0;n=Math.floor(n*0.7)){ try{localStorage.setItem(HKEY,JSON.stringify(a.slice(0,n)));return;}catch(e){ if(n===0) return; } }
+}
+function saveHistory(color,text){
+  const e={ts:Date.now(),name:drug.name,cip:drug.cip,lot:drug.lot,exp:drug.exp.toISOString(),color,text,thumb:drug.thumb||null};
+  const a=loadHist().filter(x=>!(x.cip===e.cip&&x.lot===e.lot&&x.exp===e.exp));
+  a.unshift(e); storeHist(a.slice(0,100));
+}
+function renderHist(){
+  const list=$('h-list'); list.textContent=''; const a=loadHist();
+  $('h-clear').style.display=a.length?'block':'none';
+  if(!a.length){const p=document.createElement('p');p.className='hint';p.textContent='Aucun médicament scanné pour le moment.';list.appendChild(p);return;}
+  a.forEach((e,i)=>{
+    const it=document.createElement('div'); it.className='h-item'; it.style.borderLeftColor=COL[e.color]||'#999';
+    if(e.thumb){const im=document.createElement('img');im.src=e.thumb;im.alt='';it.appendChild(im);}
+    const t=document.createElement('div'); t.className='t';
+    const s=document.createElement('strong'); s.textContent=e.name||('CIP '+(e.cip||'inconnu'));
+    const v=document.createElement('span'); v.textContent=e.text;
+    const d=document.createElement('span'); d.className='hint'; d.style.fontSize='.9rem';
+    d.textContent='Péremption '+new Date(e.exp).toLocaleDateString('fr-FR',{month:'2-digit',year:'numeric'})+' · scanné le '+new Date(e.ts).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    t.append(s,v,d); it.appendChild(t);
+    const b=document.createElement('button'); b.className='h-del'; b.textContent='✕'; b.setAttribute('aria-label','Supprimer cette entrée');
+    b.onclick=()=>{const all=loadHist();all.splice(i,1);storeHist(all);renderHist();};
+    it.appendChild(b); list.appendChild(it);
+  });
+}
+
+// ---------- Caméra ----------
+function stopCam(){ if(reader){try{reader.reset();}catch(e){} reader=null;} }
+function startCam(){
+  $('camerr').textContent='';
+  if(typeof ZXing==='undefined'){$('camerr').textContent='Lecteur indisponible. Utilisez la saisie manuelle.';return;}
+  try{
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.DATA_MATRIX]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    reader = new ZXing.BrowserMultiFormatReader(hints);
+    reader.decodeFromConstraints({video:{facingMode:'environment'}},'video',(res)=>{ if(res) handle(res.getText()); })
+      .catch(()=>{$('camerr').textContent='Caméra inaccessible. Autorisez-la dans le navigateur ou utilisez la saisie manuelle.';});
+  }catch(e){$('camerr').textContent='Caméra inaccessible. Utilisez la saisie manuelle.';}
+}
+
+$('start').onclick = startCam;
+$('hist').onclick = ()=>{stopCam();renderHist();show('v-hist');};
+$('h-back').onclick = ()=>{show('v-scan');startCam();};
+$('h-clear').onclick = ()=>{if(confirm('Effacer tout l’historique ?')){storeHist([]);renderHist();}};
+$('go').onclick = ()=>{const v=$('manual').value.trim(); if(v) handle(v);};
+$('open-q').onclick = ()=>result('open-unknown');
+$('yes').onclick = ()=>{
+  if(step===2) return result('open-bad');
+  if(!drug.ao) return result('open-unknown');           // durée inconnue : prudence
+  if(drug.ao.days===0) return result('open-bad');        // ne se conserve pas après ouverture
+  step=2;
+  $('ask-name').textContent='Notice : « '+drug.ao.sentence.slice(0,220)+(drug.ao.sentence.length>220?'…':'')+' »';
+  $('ask-q').textContent='Est-il ouvert depuis plus de '+drug.ao.label+' ?';
+};
+$('no').onclick = ()=>result(step===2 ? 'open-ok' : 'closed');
+$('again').onclick = ()=>{setColor('');busy=false;show('v-scan');startCam();};
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+</script>
+</body>
+</html>
