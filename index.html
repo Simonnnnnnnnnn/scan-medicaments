@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scan médicaments</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00a651">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Scan médicaments">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#ffffff;--fg:#14211a;--card:#f3f8f5;--line:#dbe5df;--accent:#00a651;--ink:#007a3a;--muted:#4b5a52;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;touch-action:manipulation}
+button,summary,.tile{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:background .25s,color .25s}
+body.red{background:#c62828;color:#fff}body.orange{background:#e65100;color:#fff}body.green{background:#00a651;color:#fff}
+main{max-width:520px;margin:0 auto;padding:20px;min-height:100%;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.6rem;font-weight:700;margin:8px 0 0;color:var(--ink);line-height:1.25}
+p{margin:0;line-height:1.5}
+.hint{color:var(--muted);font-size:1rem}
+body.red .hint,body.orange .hint,body.green .hint{color:inherit}
+.view{display:none;flex-direction:column;gap:16px;flex:1}
+.view.on{display:flex}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.cam{position:relative;border-radius:20px;overflow:hidden;background:#111;aspect-ratio:1/1}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.frame{position:absolute;left:50%;top:50%;height:72%;aspect-ratio:1/1;transform:translate(-50%,-50%);border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.ghost{position:absolute;left:50%;top:50%;width:34%;height:34%;transform:translate(-50%,-50%);opacity:.32;pointer-events:none}
+.thumb{width:100%;max-height:30vh;object-fit:cover;border-radius:14px;display:none}
+button{font:inherit;font-weight:600;font-size:1.1rem;border:0;border-radius:14px;padding:16px;cursor:pointer;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:10px}
+body.red button,body.orange button,body.green button{background:#fff;color:#111}
+button.alt{background:#fff;color:var(--ink);border:2px solid var(--accent)}
+body.red button.alt,body.orange button.alt,body.green button.alt{background:transparent;color:#fff;border-color:#fff}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #ffc400;outline-offset:2px}
+.row{display:flex;gap:12px}.row button{flex:1}
+.big{display:flex;justify-content:center;margin-top:8vh}
+.verdict{font-size:1.7rem;font-weight:700;text-align:center;line-height:1.3}
+.info,.plain{display:grid;gap:4px;font-size:1rem;text-align:center}
+.q{font-size:1.7rem;font-weight:700;text-align:center;margin-top:10vh;color:var(--fg);line-height:1.3}
+input{font:inherit;width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+details{border-top:1px solid var(--line);padding:12px 0 0}
+summary{cursor:pointer;font-weight:500}
+.hlist{display:grid;gap:0}
+.h-item{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding:12px 0}
+.h-item img{width:48px;height:48px;object-fit:cover;border-radius:8px}
+.h-item .t{flex:1;min-width:0;display:grid;gap:2px;font-size:.92rem}
+.h-item .t strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;background:#999}
+.h-del{padding:8px 10px;font-size:.95rem;background:transparent;color:#b71c1c;border:0;border-radius:8px;gap:6px}
+.back{padding:8px 14px;font-size:.95rem;align-self:flex-start}
+.s-item{border-bottom:1px solid var(--line);padding:14px 0;display:grid;gap:10px}
+.s-top{display:flex;gap:12px;align-items:center}
+.s-top img{width:52px;height:52px;object-fit:cover;border-radius:8px}
+.s-top .t{display:grid;gap:2px;min-width:0;font-size:.92rem}
+.s-bot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.qty{display:flex;align-items:center;gap:12px}
+.qty b{font-size:1.25rem;min-width:2ch;text-align:center}
+.qb{width:46px;height:46px;padding:0;border-radius:12px}
+.sum{font-weight:600;color:var(--muted)}
+.err{color:#b71c1c;font-weight:600}
+/* Accueil */
+.hero{background:linear-gradient(135deg,#009a48 0%,#00b35a 100%);color:#fff;border-radius:26px;padding:28px 22px 26px;text-align:center;box-shadow:0 10px 24px rgba(0,166,81,.25)}
+.hero-ico{width:68px;height:68px;border-radius:50%;background:#fff;color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.hero h1{color:#fff;font-size:1.9rem;margin:0 0 6px}
+.hero p{font-size:1.02rem;opacity:.97}
+.tile{display:flex;gap:16px;align-items:center;text-align:left;padding:18px;background:#fff;color:var(--fg);border:1px solid var(--line);border-radius:20px;box-shadow:0 4px 14px rgba(0,100,50,.08);font-weight:400}
+.tic{width:54px;height:54px;border-radius:50%;background:#e4f6ec;color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.tt{display:grid;gap:2px}
+.tt strong{font-size:1.2rem;font-weight:600;color:var(--fg)}
+.tt small{font-size:.92rem;color:var(--muted);line-height:1.4}
+.chev{margin-left:auto;color:#9aa8a0}
+textarea{font:inherit;width:100%;min-height:160px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.bar{height:10px;background:#e4f6ec;border-radius:6px;overflow:hidden}
+.bar>div{height:100%;width:0;background:var(--accent);transition:width .3s}
+.p-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.p-ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.p-ic.have{background:#e4f6ec;color:var(--accent)}.p-ic.need{background:#eaf0fa;color:#2d4a7a}.p-ic.warn{background:#fdeede;color:#e65100}.p-ic.bad{background:#fde8e8;color:#c62828}
+.p-t{display:grid;gap:2px;min-width:0;font-size:.92rem}
+.p-t strong{font-size:1.02rem}
+.p-st{font-weight:600}.p-st.have{color:var(--ink)}.p-st.need{color:#2d4a7a}.p-st.warn{color:#e65100}.p-st.bad{color:#c62828}
+.p-o{color:var(--muted);font-size:.8rem}
+.camtools{position:absolute;right:10px;bottom:10px;display:flex;gap:8px;z-index:2}
+.cbtn{width:44px;height:44px;padding:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff}
+.cbtn.on{background:var(--accent)}
+.fring{position:absolute;width:64px;height:64px;border:2px solid #fff;border-radius:50%;pointer-events:none;opacity:0;transform:translate(-50%,-50%)}
+.fring.go{animation:ring .7s ease-out}
+@keyframes ring{0%{opacity:1;transform:translate(-50%,-50%) scale(1.5)}100%{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
+.toprow{display:flex;align-items:center;gap:12px}
+.toprow h1{margin:0;font-size:1.2rem;line-height:1.2}
+.err:empty{display:none}
+#v-scan{gap:12px}
+#v-scan.on{flex:none;min-height:0;height:calc(100vh - 40px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));height:calc(100dvh - 40px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+#v-scan .cam{aspect-ratio:auto;flex:1 1 0;min-height:90px}
+#v-scan .row button{padding:14px 6px;font-size:.95rem;gap:6px;white-space:nowrap}
+#v-scan .hint{font-size:.92rem;line-height:1.4}
+.tip{text-align:center;color:var(--muted);font-size:.92rem}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+ <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+ <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+ <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+ <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></symbol>
+ <symbol id="i-cross" viewBox="0 0 24 24"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></symbol>
+ <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+ <symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+ <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+ <symbol id="i-pill" viewBox="0 0 24 24"><path d="M10.5 20.5 3.5 13.5a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7z"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/></symbol>
+ <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+ <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+ <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+ <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+ <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
+ <symbol id="i-minus" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+</svg>
+<main>
+ <section class="view on" id="v-home">
+  <div class="hero">
+   <div class="hero-ico"><svg class="i" width="34" height="34"><use href="#i-cross"/></svg></div>
+   <h1 id="greet">Bonjour</h1>
+   <p>Gardez votre pharmacie à jour, en toute sérénité.</p>
+  </div>
+  <button class="tile" id="t-control">
+   <span class="tic"><svg class="i" width="26" height="26"><use href="#i-shield"/></svg></span>
+   <span class="tt"><strong>Contrôle</strong><small>Vérifier la date de péremption d’un médicament</small></span>
+   <svg class="i chev" width="22" height="22"><use href="#i-chevron"/></svg>
+  </button>
+  <button class="tile" id="t-stock">
+   <span class="tic"><svg class="i" width="26" height="26"><use href="#i-cross"/></svg></span>
+   <span class="tt"><strong>Ma pharmacie</strong><small id="t-stock-sub"></small></span>
+   <svg class="i chev" width="22" height="22"><use href="#i-chevron"/></svg>
+  </button>
+  <button class="tile" id="t-presc">
+   <span class="tic"><svg class="i" width="26" height="26"><use href="#i-file"/></svg></span>
+   <span class="tt"><strong>Ordonnances</strong><small>Lire une ordonnance et repérer ce que vous avez déjà</small></span>
+   <svg class="i chev" width="22" height="22"><use href="#i-chevron"/></svg>
+  </button>
+  <p class="tip">Astuce : le DataMatrix se trouve sur le côté ou au dos de la boîte.</p>
+  <p class="hint" style="font-size:.8rem;text-align:center;margin-top:auto">Version 16</p>
+ </section>
+
+ <section class="view" id="v-scan">
+  <div class="toprow">
+   <button id="back" class="alt back"><svg class="i" width="18" height="18"><use href="#i-arrow-left"/></svg>Accueil</button>
+   <h1 id="scan-title">Contrôler un médicament</h1>
+  </div>
+  <p class="hint">Placez le DataMatrix de la boîte dans le cadre, à 15–20 cm. Touchez l’écran pour refaire la mise au point.</p>
+  <div class="cam" id="camwrap"><video id="video" playsinline muted></video><div class="frame"><svg class="ghost" id="ghost" viewBox="0 0 12 12" aria-hidden="true"></svg></div>
+   <span class="fring" id="fring"></span>
+   <div class="camtools"><button class="cbtn" id="zoom" style="display:none" aria-label="Zoom"><svg class="i" width="22" height="22"><use href="#i-zoom"/></svg></button><button class="cbtn" id="torch" style="display:none" aria-label="Lampe"><svg class="i" width="22" height="22"><use href="#i-zap"/></svg></button></div></div>
+  <p id="camerr" class="err"></p>
+  <div class="row">
+   <button id="start"><svg class="i" width="20" height="20"><use href="#i-camera"/></svg>Activer la caméra</button>
+   <button id="hist" class="alt"><svg class="i" width="20" height="20"><use href="#i-clock"/></svg>Historique</button>
+  </div>
+  <details>
+   <summary>Saisir le code à la main</summary>
+   <p class="hint" style="margin:8px 0">Collez le contenu du code (ex. 01034009…17271130…).</p>
+   <input id="manual" placeholder="Contenu du DataMatrix" autocomplete="off">
+   <button id="go" style="margin-top:10px;width:100%">Vérifier</button>
+  </details>
+ </section>
+
+ <section class="view" id="v-stock">
+  <button id="s-home" class="alt back"><svg class="i" width="18" height="18"><use href="#i-arrow-left"/></svg>Accueil</button>
+  <h1>Ma pharmacie</h1>
+  <p class="sum" id="s-sum"></p>
+  <button id="s-add"><svg class="i" width="22" height="22"><use href="#i-plus"/></svg>Ajouter un médicament</button>
+  <div id="s-list" class="hlist"></div>
+ </section>
+
+ <section class="view" id="v-added">
+  <div class="big" style="color:var(--accent);margin-top:4vh"><svg class="i" width="88" height="88" style="stroke-width:2.4"><use href="#i-check"/></svg></div>
+  <div class="verdict" style="color:var(--ink)">Ajouté à votre pharmacie</div>
+  <img class="thumb" id="a-img" alt="Photo de la boîte scannée">
+  <div class="plain" id="a-info"></div>
+  <div class="s-bot"><span style="font-weight:600">Quantité en stock</span>
+   <span class="qty"><button class="qb alt" id="a-minus" aria-label="Retirer une boîte"><svg class="i" width="22" height="22"><use href="#i-minus"/></svg></button><b id="a-qty"></b><button class="qb" id="a-plus" aria-label="Ajouter une boîte"><svg class="i" width="22" height="22"><use href="#i-plus"/></svg></button></span></div>
+  <button id="a-more" style="margin-top:auto">Scanner un autre médicament</button>
+  <button id="a-list" class="alt">Voir ma pharmacie</button>
+ </section>
+
+ <section class="view" id="v-presc">
+  <button id="p-home" class="alt back"><svg class="i" width="18" height="18"><use href="#i-arrow-left"/></svg>Accueil</button>
+  <h1>Ordonnances</h1>
+  <p class="hint">Prenez en photo ou importez une ordonnance : l’appli repère les médicaments prescrits et vous indique ceux que vous avez déjà dans Ma pharmacie.</p>
+  <p id="p-err" class="err"></p>
+  <button id="p-cam"><svg class="i" width="22" height="22"><use href="#i-camera"/></svg>Prendre une photo</button>
+  <button id="p-imp" class="alt"><svg class="i" width="22" height="22"><use href="#i-image"/></svg>Importer une image</button>
+  <input type="file" id="f-cam" accept="image/*" capture="environment" hidden>
+  <input type="file" id="f-imp" accept="image/*" hidden>
+  <p class="tip" style="text-align:left">Pour une bonne lecture : ordonnance à plat, bien éclairée, sans reflet. Les ordonnances imprimées sont mieux lues que les ordonnances manuscrites.<br><br>Confidentialité : la photo est lue sur votre téléphone, elle n’est ni envoyée ni enregistrée. Seuls les noms de médicaments sont recherchés dans la base publique.</p>
+ </section>
+
+ <section class="view" id="v-pload">
+  <p class="q" id="p-msg" style="margin-top:18vh"></p>
+  <div class="bar"><div id="p-bar"></div></div>
+ </section>
+
+ <section class="view" id="v-pres">
+  <button id="pr-back" class="alt back"><svg class="i" width="18" height="18"><use href="#i-arrow-left"/></svg>Ordonnances</button>
+  <h1>Médicaments prescrits</h1>
+  <p class="sum" id="pr-sum"></p>
+  <div id="pr-list" class="hlist"></div>
+  <div class="row" style="align-items:stretch">
+   <input id="pr-add" list="dl" placeholder="Ajouter un médicament oublié ou mal lu" autocomplete="off" style="flex:2">
+   <button id="pr-addbtn" class="alt" style="flex:0 0 auto;padding:12px 16px">Ajouter</button>
+  </div>
+  <datalist id="dl"></datalist>
+  <button id="pr-copy"><svg class="i" width="22" height="22"><use href="#i-copy"/></svg>Copier la liste à demander</button>
+  <details>
+   <summary>Texte lu (modifiable)</summary>
+   <p class="hint" style="margin:8px 0">La lecture automatique peut comporter des erreurs. Corrigez le texte puis relancez l’analyse.</p>
+   <textarea id="pr-text"></textarea>
+   <button id="pr-re" class="alt" style="margin-top:10px;width:100%">Relancer l’analyse</button>
+  </details>
+  <p class="tip" style="text-align:left">Lecture automatique, susceptible d’erreurs : vérifiez toujours avec votre ordonnance et votre pharmacien.</p>
+  <button id="pr-home" class="alt">Accueil</button>
+ </section>
+
+ <section class="view" id="v-hist">
+  <h1>Historique</h1>
+  <div id="h-list" class="hlist"></div>
+  <button id="h-clear" class="alt">Tout effacer</button>
+  <button id="h-back">Retour au scan</button>
+ </section>
+
+ <section class="view" id="v-load">
+  <p class="q" style="margin-top:20vh">Recherche du médicament et lecture de la notice…</p>
+ </section>
+
+ <section class="view" id="v-ask">
+  <p class="hint" id="ask-name" style="text-align:center"></p>
+  <p class="q" id="ask-q"></p>
+  <div class="row"><button id="yes">Oui</button><button id="no" class="alt">Non</button></div>
+ </section>
+
+ <section class="view" id="v-res">
+  <div class="big" id="r-icon"></div>
+  <div class="verdict" id="r-text"></div>
+  <img class="thumb" id="r-img" alt="Photo de la boîte scannée">
+  <div class="info" id="r-info"></div>
+  <button id="open-q" class="alt" style="display:none">Médicament non reconnu : sirop ou collyre déjà ouvert ?</button>
+  <button id="again" style="margin-top:auto">Scanner un autre médicament</button>
+  <button id="r-home" class="alt">Accueil</button>
+ </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+// API de recherche du médicament par code CIP13 (modifiable)
+const API_URL = "https://medicaments-api.giygas.dev/v1/medicaments?cip=";
+const LIQUID = /sirop|buvable|collyre|goutte|suspension|solution|pommade|crème|\bgel\b|nasal|auricul|ophtalm|émulsion|lotion|inhal/i;
+const STRICT_LIQUID = /sirop|buvable|collyre|gouttes|suspension|ophtalm|nasal|auricul|pommade|crème|\bgel\b/i;
+
+const $ = id => document.getElementById(id);
+function ico(n,s){s=s||24;return '<svg class="i" width="'+s+'" height="'+s+'" aria-hidden="true"><use href="#i-'+n+'"/></svg>';}
+let reader = null, busy = false, drug = null, thumbSnap = null, mode = 'control', lastId = null;
+// Monogramme DataMatrix en transparence (bords pleins à gauche/en bas, pointillés en haut/à droite)
+(function(){let s='',seed=7;const r=()=>(seed=(seed*37+11)%101)%2;
+for(let y=0;y<12;y++)for(let x=0;x<12;x++){
+ const on = x===0||y===11 || (y===0&&x%2===0) || (x===11&&y%2===1) || (x>0&&x<11&&y>0&&y<11&&r());
+ if(on) s+=`<rect x="${x}" y="${y}" width="1" height="1" fill="#fff"/>`;}
+$('ghost').innerHTML=s;})();
+function capture(){
+  thumbSnap=null;
+  const v=$('video'); if(!v.videoWidth) return null;
+  const w=480,h=Math.round(v.videoHeight*w/v.videoWidth),c=document.createElement('canvas');
+  c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);
+  try{const t=document.createElement('canvas');t.width=96;t.height=96;const s=Math.min(v.videoWidth,v.videoHeight);t.getContext('2d').drawImage(v,(v.videoWidth-s)/2,(v.videoHeight-s)/2,s,s,0,0,96,96);thumbSnap=t.toDataURL('image/jpeg',.5);}catch(e){}
+  try{return c.toDataURL('image/jpeg',.7);}catch(e){return null;}
+}
+function askWord(name){
+  if(/collyre|ophtalm/i.test(name)) return 'Le collyre';
+  if(/sirop/i.test(name)) return 'Le sirop';
+  if(/buvable|suspension|solution|gouttes/i.test(name)) return 'Le flacon';
+  return 'Le médicament';
+}
+
+function show(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===id));}
+function setColor(c){document.body.className=c||'';}
+
+// ---------- Lecture du code GS1 ----------
+function parseGS1(raw){
+  let s = raw.replace(/[()]/g,'').replace(/^\]d2/,'');
+  const out = {}; let i = 0;
+  const fixed = {'01':14,'02':14,'11':6,'13':6,'15':6,'17':6};
+  while(i < s.length){
+    if(s[i]==='\x1d'){i++;continue;}
+    const ai = s.substr(i,2); i+=2;
+    if(fixed[ai]){out[ai]=s.substr(i,fixed[ai]); i+=fixed[ai];}
+    else{
+      let j=i; while(j<s.length && s[j]!=='\x1d') j++;
+      out[ai]=s.substring(i,j); i=j+1;
+      if(ai==='10' || ai==='21') { /* variable */ }
+    }
+  }
+  return out;
+}
+function parseExpiry(yymmdd){
+  if(!yymmdd||yymmdd.length!==6) return null;
+  const y=2000+ +yymmdd.slice(0,2), m=+yymmdd.slice(2,4), d=+yymmdd.slice(4,6);
+  if(m<1||m>12) return null;
+  const day = d===0 ? new Date(y,m,0).getDate() : d; // jour 00 = fin de mois
+  return new Date(y,m-1,day,23,59,59);
+}
+
+// ---------- Reconnaissance du médicament et lecture de la notice ----------
+const API_BASE = API_URL.split('/v1/')[0];
+async function getJSON(url, ms){
+  try{
+    const ctl = new AbortController(); const t=setTimeout(()=>ctl.abort(),ms);
+    const r = await fetch(url,{signal:ctl.signal}); clearTimeout(t);
+    return r.ok ? await r.json() : null;
+  }catch(e){ return null; }
+}
+function extract(j){
+  const forms=[],names=[],subs=[]; let cis='';
+  (function walk(o){
+    if(Array.isArray(o)) return o.forEach(walk);
+    if(o && typeof o==='object') for(const k in o){
+      const v=o[k];
+      if(v!==null && typeof v==='object'){ walk(v); continue; }
+      if(/^(cis|code_?cis)$/i.test(k) && !cis && /^\d{8}$/.test(String(v))) cis=String(v);
+      else if(typeof v==='string'){
+        if(/substance/i.test(k)){ const n=norm(v); if(n.length>=4 && /[a-z]/.test(n)) subs.push(n); }
+        else if(/forme/i.test(k)) forms.push(v);
+        else if(/denomination|nom$/i.test(k)) names.push(v);
+      }
+    }
+  })(j);
+  return {forms,names,subs:[...new Set(subs)],cis};
+}
+async function lookup(cip){
+  const j = await getJSON(API_URL+encodeURIComponent(cip),6000);
+  if(!j) return null;
+  const {forms,names,subs,cis} = extract(j);
+  const name = names[0]||'';
+  if(!forms.length && !name) return null;
+  return {name, cis, subs, liquid: LIQUID.test(forms.join(' ')+' '+name), known:true};
+}
+function allText(j){
+  const out=[];
+  (function walk(o){
+    if(typeof o==='string') out.push(o.replace(/<[^>]+>/g,' '));
+    else if(Array.isArray(o)) o.forEach(walk);
+    else if(o && typeof o==='object') Object.values(o).forEach(walk);
+  })(j);
+  return out.join('\n').replace(/[\u00a0\u202f]/g,' ');
+}
+// Cherche la durée de conservation après ouverture dans le texte d'une notice
+const NUMW={un:1,une:1,deux:2,trois:3,quatre:4,six:6};
+function findAfterOpening(text){
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/);
+  let best=null, immediate=null;
+  for(const s0 of sentences){
+    const s=s0.trim(); if(s.length<8||s.length>600) continue;
+    if(!/ouverture|ouvert|reconstitu|entam|première utilisation|premiere utilisation/i.test(s)) continue;
+    if(/avant (la )?(première )?(ouverture|reconstitution)/i.test(s) && !/apr[eè]s/i.test(s)) continue;
+    const m = s.match(/(\d+(?:[.,]\d+)?|\bun\b|\bune\b|\bdeux\b|\btrois\b|\bquatre\b|\bsix\b)\s*(jours?|semaines?|mois|heures?)/i);
+    if(m){
+      const n = /^\d/.test(m[1]) ? parseFloat(m[1].replace(',','.')) : NUMW[m[1].toLowerCase()];
+      const u = m[2].toLowerCase();
+      const days = /^jour/.test(u)?n : /^semaine/.test(u)?n*7 : /^mois/.test(u)?n*30 : n/24;
+      let label = `${m[1]} ${u}`;
+      if(!best || days<best.days) best={days,label,sentence:s};
+    } else if(/imm[ée]diatement|usage unique|jet[ée]e? apr[eè]s (usage|utilisation)|ne doit pas être conservé/i.test(s) && /ouverture|entam/i.test(s)){
+      immediate = immediate || {days:0,label:'',sentence:s};
+    }
+  }
+  return best || immediate;
+}
+async function afterOpening(cis){
+  if(!cis) return null;
+  const [nt, rcp] = await Promise.all([
+    getJSON(`${API_BASE}/v1/medicaments/${cis}/notice`,10000),
+    getJSON(`${API_BASE}/v1/medicaments/${cis}/rcp`,10000)
+  ]);
+  return (nt && findAfterOpening(allText(nt))) || (rcp && findAfterOpening(allText(rcp))) || null;
+}
+
+// ---------- Flux ----------
+let step = 1;
+async function handle(raw){
+  if(busy) return; busy=true;
+  const snap = capture();
+  stopCam();
+  const d = parseGS1(raw);
+  const gtin = d['01']||'';
+  const cip = gtin.length===14 ? gtin.slice(1) : gtin;
+  const exp = parseExpiry(d['17']);
+  if(!exp){busy=false; $('camerr').textContent="Ce code ne contient pas de date de péremption. Réessayez.";show('v-scan');return;}
+  show('v-load');
+  const info = cip ? await lookup(cip) : null;
+  if(mode==='stock'){ addToStock(info,cip,exp,d['10']||'',thumbSnap); return; }
+  const expired = exp < new Date();
+  const ao = (!expired && info && info.cis) ? await afterOpening(info.cis) : null;
+  drug = {cip, exp, lot:d['10']||'', name: info&&info.name||'', liquid: info?info.liquid:null, img:snap, thumb:thumbSnap, ao};
+  // la question n'est posée que si le médicament le nécessite (forme liquide ou durée après ouverture dans la notice)
+  if(expired){ result('closed'); return; } // périmé : verdict direct, sans question
+  if(drug.liquid===true || ao){
+    step=1;
+    $('ask-name').textContent = drug.name;
+    $('ask-q').textContent = (ao&&!drug.liquid ? 'Le médicament' : askWord(drug.name))+' est-il ouvert ?';
+    show('v-ask'); setColor('');
+  } else result('closed');
+}
+// état : 'closed' | 'open-ok' | 'open-bad' | 'open-unknown'
+function result(state){
+  const now = new Date(), inMonth = new Date(now); inMonth.setMonth(inMonth.getMonth()+1);
+  let c, icon, text;
+  if(state==='open-bad'){c='red';icon='✕';text = drug.ao&&drug.ao.days===0 ? 'À jeter : ne se conserve pas après ouverture' : 'À jeter : ouvert depuis trop longtemps';}
+  else if(state==='open-unknown'){c='red';icon='✕';text='Ouvert : à jeter par prudence';}
+  else if(drug.exp < now){c='red';icon='✕';text='Périmé';}
+  else if(drug.exp <= inMonth){c='orange';icon='!';text='Périme dans moins d’un mois';}
+  else {c='green';icon='✓';text='Utilisable';}
+  saveHistory(c,text);
+  setColor(c); $('r-icon').innerHTML=ico({'✕':'x','!':'alert','✓':'check'}[icon],96).replace('<svg ','<svg style="stroke-width:2.2" '); $('r-text').textContent=text;
+  const f = drug.exp.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const lines=[]; if(drug.name) lines.push(['strong',drug.name]);
+  lines.push(['span','Péremption : '+f]);
+  if(state==='open-ok' && drug.ao) lines.push(['span','Ouvert depuis moins de '+drug.ao.label+' (durée après ouverture, d’après la notice)']);
+  else if(state==='open-bad' && drug.ao && drug.ao.days>0) lines.push(['span','Durée après ouverture : '+drug.ao.label+' (notice)']);
+  else if(state==='open-unknown') lines.push(['span','Durée après ouverture non trouvée : voir la notice ou demander au pharmacien']);
+  if(drug.cip) lines.push(['span','CIP : '+drug.cip]);
+  if(drug.lot) lines.push(['span','Lot : '+drug.lot]);
+  const box=$('r-info'); box.textContent='';
+  lines.forEach(([t,v])=>{const e=document.createElement(t);e.textContent=v;box.appendChild(e);});
+  if(drug.img){$('r-img').src=drug.img;$('r-img').style.display='block';}else $('r-img').style.display='none';
+  // médicament non reconnu : option discrète, pas de question imposée
+  $('open-q').style.display = (drug.liquid===null && !drug.ao && state==='closed') ? '' : 'none';
+  show('v-res'); busy=false;
+}
+
+// ---------- Historique (stocké sur le téléphone) ----------
+const HKEY='scanmed-history', COL={red:'#c62828',orange:'#e65100',green:'#00a651'};
+function loadHist(){try{return JSON.parse(localStorage.getItem(HKEY)||'[]');}catch(e){return [];}}
+function storeHist(a){
+  for(let n=a.length;n>=0;n=Math.floor(n*0.7)){ try{localStorage.setItem(HKEY,JSON.stringify(a.slice(0,n)));return;}catch(e){ if(n===0) return; } }
+}
+function saveHistory(color,text){
+  const e={ts:Date.now(),name:drug.name,cip:drug.cip,lot:drug.lot,exp:drug.exp.toISOString(),color,text,thumb:drug.thumb||null};
+  const a=loadHist().filter(x=>!(x.cip===e.cip&&x.lot===e.lot&&x.exp===e.exp));
+  a.unshift(e); storeHist(a.slice(0,100));
+}
+function renderHist(){
+  const list=$('h-list'); list.textContent=''; const a=loadHist();
+  $('h-clear').style.display=a.length?'':'none';
+  if(!a.length){const p=document.createElement('p');p.className='hint';p.textContent='Aucun médicament scanné pour le moment.';list.appendChild(p);return;}
+  a.forEach((e,i)=>{
+    const it=document.createElement('div'); it.className='h-item';
+    const dot=document.createElement('span');dot.className='dot';dot.style.background=COL[e.color]||'#999';it.appendChild(dot);
+    if(e.thumb){const im=document.createElement('img');im.src=e.thumb;im.alt='';it.appendChild(im);}
+    const t=document.createElement('div'); t.className='t';
+    const s=document.createElement('strong'); s.textContent=e.name||('CIP '+(e.cip||'inconnu'));
+    const v=document.createElement('span'); v.textContent=e.text;
+    const d=document.createElement('span'); d.className='hint'; d.style.fontSize='.9rem';
+    d.textContent='Péremption '+new Date(e.exp).toLocaleDateString('fr-FR',{month:'2-digit',year:'numeric'})+' · scanné le '+new Date(e.ts).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    t.append(s,v,d); it.appendChild(t);
+    const b=document.createElement('button'); b.className='h-del'; b.innerHTML=ico('x',20); b.setAttribute('aria-label','Supprimer cette entrée');
+    b.onclick=()=>{const all=loadHist();all.splice(i,1);storeHist(all);renderHist();};
+    it.appendChild(b); list.appendChild(it);
+  });
+}
+
+// ---------- Ma pharmacie (stock enregistré sur le téléphone) ----------
+const SKEY='scanmed-stock';
+function loadStock(){try{return JSON.parse(localStorage.getItem(SKEY)||'[]');}catch(e){return [];}}
+function saveStock(a){
+  try{localStorage.setItem(SKEY,JSON.stringify(a));}
+  catch(e){try{localStorage.setItem(SKEY,JSON.stringify(a.map(x=>({...x,thumb:null}))));}catch(e2){}}
+}
+function expStatus(d){const now=new Date(),m=new Date(now);m.setMonth(m.getMonth()+1);return d<now?'red':d<=m?'orange':'green';}
+function medName(x){return x.name||('CIP '+(x.cip||'inconnu'));}
+function fmtExp(iso){return new Date(iso).toLocaleDateString('fr-FR',{month:'2-digit',year:'numeric'});}
+function addToStock(info,cip,exp,lot,thumb){
+  const id=[cip,lot,exp.toISOString().slice(0,10)].join('|');
+  const a=loadStock(); let it=a.find(x=>x.id===id);
+  if(it){it.qty++; if(!it.name&&info&&info.name) it.name=info.name; if((!it.subs||!it.subs.length)&&info&&info.subs) it.subs=info.subs; if(!it.thumb&&thumb) it.thumb=thumb;}
+  else{it={id,cip,lot,name:info&&info.name||'',subs:(info&&info.subs)||[],exp:exp.toISOString(),qty:1,thumb:thumb||null,ts:Date.now()};a.push(it);}
+  saveStock(a); lastId=id; renderAdded(it); busy=false;
+}
+function renderAdded(it){
+  setColor('');
+  if(it.thumb){$('a-img').src=it.thumb;$('a-img').style.display='block';$('a-img').style.maxWidth='140px';$('a-img').style.alignSelf='center';}else $('a-img').style.display='none';
+  const box=$('a-info'); box.textContent='';
+  [['strong',medName(it)],['span','Péremption : '+fmtExp(it.exp)]].concat(it.lot?[['span','Lot : '+it.lot]]:[]).forEach(([t,v])=>{const e=document.createElement(t);e.textContent=v;box.appendChild(e);});
+  $('a-qty').textContent=it.qty;
+  show('v-added');
+}
+function changeQty(id,delta,after){
+  const a=loadStock(), i=a.findIndex(x=>x.id===id); if(i<0) return;
+  const n=a[i].qty+delta;
+  if(n<=0){ if(!confirm('Retirer ce médicament de votre pharmacie ?')) return; a.splice(i,1); saveStock(a); return after(null); }
+  a[i].qty=n; saveStock(a); after(a[i]);
+}
+const STCOL={red:'#c62828',orange:'#e65100',green:'#00a651'}, STTXT={red:'Périmé',orange:'Périme dans moins d’un mois',green:''};
+function renderStock(){
+  const a=loadStock().sort((x,y)=>new Date(x.exp)-new Date(y.exp));
+  const list=$('s-list'); list.textContent='';
+  const boxes=a.reduce((s,x)=>s+x.qty,0), bad=a.filter(x=>expStatus(new Date(x.exp))==='red').length, soon=a.filter(x=>expStatus(new Date(x.exp))==='orange').length;
+  $('s-sum').textContent = a.length ? `${boxes} boîte${boxes>1?'s':''}`+(bad?` · ${bad} périmé${bad>1?'s':''}`:'')+(soon?` · ${soon} bientôt périmé${soon>1?'s':''}`:'') : '';
+  if(!a.length){const p=document.createElement('p');p.className='hint';p.textContent='Votre pharmacie est vide. Scannez un médicament pour l’ajouter.';list.appendChild(p);return;}
+  a.forEach(x=>{
+    const st=expStatus(new Date(x.exp));
+    const it=document.createElement('div'); it.className='s-item';
+    const top=document.createElement('div'); top.className='s-top';
+    const dot=document.createElement('span'); dot.className='dot'; dot.style.background=STCOL[st]; top.appendChild(dot);
+    if(x.thumb){const im=document.createElement('img');im.src=x.thumb;im.alt='';top.appendChild(im);}
+    const t=document.createElement('div'); t.className='t';
+    const n=document.createElement('strong'); n.textContent=medName(x);
+    const d=document.createElement('span'); d.textContent='Péremption '+fmtExp(x.exp)+(x.lot?' · lot '+x.lot:'');
+    t.append(n,d);
+    if(STTXT[st]){const s=document.createElement('span');s.textContent=STTXT[st];s.style.color=STCOL[st];s.style.fontWeight='700';t.appendChild(s);}
+    top.appendChild(t);
+    const bot=document.createElement('div'); bot.className='s-bot';
+    const q=document.createElement('span'); q.className='qty';
+    const mi=document.createElement('button'); mi.className='qb alt'; mi.innerHTML=ico('minus',22); mi.setAttribute('aria-label','Retirer une boîte');
+    const num=document.createElement('b'); num.textContent=x.qty;
+    const pl=document.createElement('button'); pl.className='qb'; pl.innerHTML=ico('plus',22); pl.setAttribute('aria-label','Ajouter une boîte');
+    mi.onclick=()=>changeQty(x.id,-1,renderStock); pl.onclick=()=>changeQty(x.id,1,renderStock);
+    q.append(mi,num,pl);
+    const del=document.createElement('button'); del.className='h-del'; del.innerHTML=ico('trash',18)+'Supprimer'; del.style.fontSize='1rem';
+    del.onclick=()=>{if(confirm('Retirer ce médicament de votre pharmacie ?')){saveStock(loadStock().filter(y=>y.id!==x.id));renderStock();}};
+    bot.append(q,del);
+    it.append(top,bot); list.appendChild(it);
+  });
+}
+function updateHome(){
+  $('greet').textContent = new Date().getHours()>=18 ? 'Bonsoir' : 'Bonjour';
+  const a=loadStock(), boxes=a.reduce((s,x)=>s+x.qty,0), warn=a.filter(x=>expStatus(new Date(x.exp))!=='green').length;
+  $('t-stock-sub').textContent = a.length ? `${boxes} boîte${boxes>1?'s':''} en stock`+(warn?` · ${warn} à vérifier`:'') : 'Ajouter vos médicaments et suivre les quantités';
+}
+function setMode(m){
+  mode=m;
+  $('scan-title').textContent = m==='stock' ? 'Ajouter à ma pharmacie' : 'Contrôler un médicament';
+  $('hist').style.display = m==='stock' ? 'none' : '';
+}
+function goHome(){stopCam();busy=false;setColor('');updateHome();show('v-home');}
+
+// ---------- Ordonnances : lecture (OCR sur le téléphone) et comparaison avec Ma pharmacie ----------
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+function firstWord(s){const w=norm(s).split(' ').find(x=>/^[a-z]{4,}$/.test(x));return w||'';}
+function lev(a,b){const m=[];for(let i=0;i<=a.length;i++){m[i]=[i];}for(let j=1;j<=b.length;j++)m[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length];}
+function findItems(j){
+  const ok=x=>x&&typeof x==='object';
+  if(Array.isArray(j)) return j.filter(ok);
+  if(ok(j)){ for(const k in j){ if(Array.isArray(j[k])&&j[k].some(ok)) return j[k].filter(ok); } if(j.denomination||j.cis) return [j]; }
+  return [];
+}
+const P_STOP=new Set(('dr docteur medecin patient patiente ordonnance date rpps adeli tel telephone cabinet pharmacie prescription signature quantite traitement duree renouvelable renouveler matin midi soir pendant jours jour semaines semaine mois boite boites prendre prenez voie orale avant apres repas par fois total conditionnement assure assuree securite sociale madame monsieur prenom nom adresse avenue boulevard paris fait lieu certifie cachet page comprime comprimes gelule gelules cuillere ampoule ampoules sachet sachets gouttes goutte flacon tube').split(' '));
+const P_DOSE=/\b\d+(?:[.,]\d+)?\s*(?:mg|g|mcg|µg|ug|ml|ui|%|gr)\b/i;
+const P_FORM=/(comprim|g[ée]lule|sirop|sachet|solution|goutte|collyre|pommade|cr[èe]me|suppo|ampoule|spray|patch|injectable|poudre|pdr|capsule|\bgel\b|lotion|shampo|[ée]mulsion|inhal|pastille|lyoc)/i;
+function candidates(text){
+  const out=[],seen=new Set();
+  text.split(/\n+/).forEach(raw=>{
+    const l=raw.replace(/[|_~]/g,' ').replace(/^[\s\-–—•·*.\d)\]]+(?=[A-Za-zÀ-ÿ])/,'').replace(/\s+/g,' ').trim();
+    if(l.length<5||l.length>160) return;
+    const fw=norm(l).split(' ')[0];
+    if(!fw||fw.length<4||P_STOP.has(fw)) return;
+    if(!P_DOSE.test(l)&&!P_FORM.test(l)) return;
+    const words=[];
+    for(const w of l.split(' ')){ if(/\d/.test(w)||P_FORM.test(w)||w.startsWith('(')) break; words.push(w.replace(/[,;:.]+$/,'')); if(words.length>=4) break; }
+    const name=words.join(' ').trim();
+    if(!firstWord(name)) return;
+    const key=norm(name); if(seen.has(key)) return; seen.add(key);
+    out.push({name,line:l.slice(0,90)});
+  });
+  return out;
+}
+const vcache=new Map();
+async function verifyName(c){const k=norm(c.name); if(vcache.has(k)) return vcache.get(k); const r=await verifyRaw(c); if(r.ok!==null) vcache.set(k,r); return r;}
+async function verifyRaw(c){
+  const q=c.name.split(' ').slice(0,2).join(' ');
+  const j=await getJSON(API_BASE+'/v1/medicaments?search='+encodeURIComponent(q),8000);
+  if(j===null) return {ok:null,subs:[]};          // base injoignable ou trop de résultats
+  const items=findItems(j); if(!items.length) return {ok:false,subs:[]};
+  const w=firstWord(c.name); const subs=new Set(); let any=false;
+  items.slice(0,40).forEach(it=>{const e=extract(it); if(!w||firstWord(e.names[0]||'')===w||!e.names.length){any=true;e.subs.forEach(s=>subs.add(s));}});
+  if(!any) items.slice(0,10).forEach(it=>extract(it).subs.forEach(s=>subs.add(s)));
+  return {ok:true,subs:[...subs]};
+}
+function matchStock(c,stock){
+  const w=firstWord(c.name), res=[];
+  stock.forEach(s=>{
+    const sw=firstWord(s.name||'');
+    if(w&&sw&&(w===sw||(w.length>=7&&sw.length>=7&&lev(w,sw)<=1))) res.push({s,type:'name'});
+    else if(c.subs&&c.subs.length&&s.subs&&s.subs.some(x=>c.subs.includes(x))) res.push({s,type:'subs'});
+  });
+  return res;
+}
+// Image : réduction + niveaux de gris + contraste pour aider la lecture
+function prepImage(file){return new Promise((ok,ko)=>{
+  const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{const sc=Math.min(1,2000/Math.max(im.width,im.height)),c=document.createElement('canvas');
+    c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);const x=c.getContext('2d');x.drawImage(im,0,0,c.width,c.height);
+    const d=x.getImageData(0,0,c.width,c.height),p=d.data;
+    for(let i=0;i<p.length;i+=4){let g=0.299*p[i]+0.587*p[i+1]+0.114*p[i+2];g=(g-128)*1.35+138;g=g<0?0:g>255?255:g;p[i]=p[i+1]=p[i+2]=g;}
+    x.putImageData(d,0,0);URL.revokeObjectURL(url);ok(c);};
+  im.onerror=()=>{URL.revokeObjectURL(url);ko(new Error('image'));};
+  im.src=url;});}
+// Seconde passe pour l'écriture manuscrite : seuillage local (encre noire / papier blanc)
+function binarize(canvas){
+  const W=canvas.width,H=canvas.height,cx=canvas.getContext('2d'),d=cx.getImageData(0,0,W,H),p=d.data,g=new Uint8Array(W*H);
+  for(let i=0,j=0;i<p.length;i+=4,j++) g[j]=p[i];
+  const I=new Uint32Array((W+1)*(H+1));
+  for(let y=1;y<=H;y++){let row=0;for(let x=1;x<=W;x++){row+=g[(y-1)*W+x-1];I[y*(W+1)+x]=I[(y-1)*(W+1)+x]+row;}}
+  const r=Math.max(15,Math.round(Math.min(W,H)/30));
+  for(let y=0;y<H;y++){const y0=Math.max(0,y-r),y1=Math.min(H,y+r+1);
+    for(let x=0;x<W;x++){const x0=Math.max(0,x-r),x1=Math.min(W,x+r+1);
+      const s=I[y1*(W+1)+x1]-I[y0*(W+1)+x1]-I[y1*(W+1)+x0]+I[y0*(W+1)+x0], n=(y1-y0)*(x1-x0);
+      const v=g[y*W+x]*n<s*0.88?0:255, k=(y*W+x)*4; p[k]=p[k+1]=p[k+2]=v;}}
+  cx.putImageData(d,0,0); return canvas;
+}
+// Dictionnaire des médicaments courants : sert à corriger les mots mal lus (nom approché → nom probable)
+const DICT=('doliprane efferalgan dafalgan paracetamol ibuprofene advil nurofen spedifen antarene ketoprofene profenid diclofenac voltarene aspirine aspegic kardegic tramadol topalgic contramal zaldiar codoliprane lamaline ixprim '+
+'amoxicilline clamoxyl augmentin azithromycine zithromax clarithromycine zeclar josacine pristinamycine pyostacine cefuroxime zinnat cefpodoxime orelox ofloxacine ciprofloxacine levofloxacine tavanic doxycycline vibramycine bactrim fosfomycine monuril nitrofurantoine furadantine metronidazole flagyl spiramycine rovamycine oracilline '+
+'omeprazole mopral esomeprazole inexium pantoprazole eupantol lansoprazole lanzor smecta gaviscon motilium domperidone spasfon phloroglucinol imodium loperamide metoclopramide primperan forlax movicol duphalac lactulose '+
+'ventoline salbutamol seretide symbicort singulair montelukast aerius desloratadine zyrtec cetirizine kestin ebastine clarityne loratadine xyzall levocetirizine toplexil fluimucil acetylcysteine mucomyst humex rhinofebral nasonex avamys rhinocort derinox actifed '+
+'amlodipine amlor ramipril triatec perindopril coversyl bisoprolol cardensiel atenolol tenormine losartan cozaar valsartan tareg irbesartan aprovel hydrochlorothiazide furosemide lasilix atorvastatine tahor simvastatine zocor rosuvastatine crestor pravastatine elisor ezetrol clopidogrel plavix warfarine coumadine previscan eliquis apixaban xarelto rivaroxaban lovenox '+
+'metformine glucophage stagid januvia sitagliptine diamicron gliclazide amarel glimepiride victoza ozempic lantus levemir novorapid humalog insuline forxiga jardiance '+
+'lexomil bromazepam xanax alprazolam temesta lorazepam seresta valium diazepam stilnox zolpidem imovane zopiclone deroxat paroxetine seroplex escitalopram zoloft sertraline prozac fluoxetine effexor venlafaxine laroxyl amitriptyline atarax hydroxyzine tercian depakine lamictal lamotrigine keppra levetiracetam tegretol rivotril clonazepam '+
+'levothyrox levothyroxine euthyrox cortancyl prednisone solupred prednisolone medrol methylprednisolone celestene betamethasone kenacort '+
+'diprosone dermoval betneval locoid eurax fucidine bactroban mupirocine daktarin econazole pevaryl mycoster tobrex tobramycine vitabact azyter oculotect refresh systane dacryoserum '+
+'norlevo ellaone optilova leeloo minidril cerazette zovirax aciclovir valaciclovir zelitrex tamiflu oseltamivir stromectol ivermectine nizoral tardyferon fumafer ferograd uvedose zymad calcidose dedrogyl').split(' ');
+function capName(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+const CONF={'0':'o','1':'l','3':'e','4':'a','5':'s','6':'g','8':'b'};
+function fuzzyFind(text,stock){
+  const dict=[...new Set([...DICT,...stock.map(s=>firstWord(s.name||'')).filter(Boolean)])];
+  const seen=new Set(), out=[];
+  text.replace(/[^A-Za-zÀ-ÿ0-9]+/g,' ').split(' ').forEach(raw=>{
+    if((raw.match(/[A-Za-zÀ-ÿ]/g)||[]).length<4) return;
+    const t=norm(raw).replace(/[0-9]/g,d=>CONF[d]||d).replace(/[^a-z]/g,'');
+    if(t.length<5||seen.has(t)) return; seen.add(t);
+    let best=null;
+    for(const d of dict){ if(Math.abs(d.length-t.length)>2) continue;
+      const dist=lev(t,d), lim=t.length>=9?3:t.length>=7?2:1;
+      if(dist<=lim&&(!best||dist<best.dist)) best={d,dist}; }
+    if(best){const dd=best.dist+(/[0-9]/.test(raw)?1:0); out.push({name:capName(best.d),line:dd?`Lu « ${raw} », corrigé en « ${capName(best.d)} »`:`Lu : ${raw}`,fuzzy:true,dist:dd});}
+  });
+  return out;
+}
+function loadTesseract(){return window.Tesseract?Promise.resolve():new Promise((ok,ko)=>{
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  s.onload=ok;s.onerror=()=>ko(new Error('tesseract'));document.head.appendChild(s);});}
+function setP(msg,pct){$('p-msg').textContent=msg;$('p-bar').parentNode.style.display=pct==null?'none':'block';if(pct!=null)$('p-bar').style.width=Math.round(pct*100)+'%';}
+let pbusy=false;
+let manual=[];
+async function readPrescription(file){
+  if(!file||pbusy) return; pbusy=true; manual=[]; $('p-err').textContent='';
+  try{
+    show('v-pload'); setP('Chargement du lecteur de texte…',0);
+    await loadTesseract();
+    const c1=await prepImage(file);
+    setP('Lecture de l’ordonnance…',0);
+    let phase='Lecture de l’ordonnance…';
+    const w=await Tesseract.createWorker('fra',1,{logger:m=>{if(m.status==='recognizing text')setP(phase,m.progress||0);}});
+    let text=(await w.recognize(c1)).data.text||'';
+    // peu de médicaments trouvés (écriture manuscrite ?) : seconde lecture avec un autre traitement de l'image
+    if(candidates(text).length+fuzzyFind(text,loadStock()).length<3){
+      phase='Seconde lecture (écriture manuscrite)…'; setP(phase,0);
+      await w.setParameters({tessedit_pageseg_mode:'6'});
+      const t2=(await w.recognize(binarize(await prepImage(file)))).data.text||'';
+      text=text+'\n'+t2;
+    }
+    await w.terminate();
+    await analyze(text);
+  }catch(e){
+    $('p-err').textContent='La lecture a échoué. Vérifiez votre connexion (nécessaire la première fois) et réessayez avec une photo bien éclairée.';
+    show('v-presc');
+  }finally{pbusy=false;}
+}
+async function analyze(text){
+  show('v-pload'); setP('Recherche des médicaments…',null);
+  const stock=loadStock(); let cands=[];
+  const near=(x,y)=>x===y||(x.length>=6&&y.length>=6&&lev(x,y)<=1);
+  [fuzzyFind(text,stock),candidates(text),manual].forEach(l=>l.forEach(c=>{
+    const k=firstWord(c.name)||norm(c.name), ex=cands.find(x=>near(x._k,k));
+    if(ex){ if(!c.fuzzy&&!c.manual&&ex.fuzzy&&ex.dist===0){ex.line=c.line;ex.name=c.name;ex.fuzzy=false;} return; }
+    c._k=k; cands.push(c);
+  }));
+  cands=cands.slice(0,14);
+  for(let i=0;i<cands.length;i++){ setP(`Vérification dans la base des médicaments (${i+1}/${cands.length})…`,null); Object.assign(cands[i],await verifyName(cands[i])); }
+  renderPresc(cands,stock,text);
+}
+let toAsk=[];
+function renderPresc(cands,stock,text){
+  const list=$('pr-list'); list.textContent=''; toAsk=[]; let have=0,need=0,sim=0;
+  cands.forEach(c=>{
+    const m=matchStock(c,stock), byName=m.filter(x=>x.type==='name'), bySubs=m.filter(x=>x.type==='subs');
+    let cls,icon,title,detail='';
+    if(byName.length){
+      const good=byName.filter(x=>expStatus(new Date(x.s.exp))!=='red');
+      if(good.length){ cls='have';icon='check';title='Déjà dans votre pharmacie';have++;
+        const q=good.reduce((s,x)=>s+x.s.qty,0), soon=good.map(x=>new Date(x.s.exp)).sort((a,b)=>a-b)[0];
+        detail=`${q} boîte${q>1?'s':''} · péremption ${fmtExp(soon.toISOString())}`+(expStatus(soon)==='orange'?' · périme bientôt':'');
+      }else{ cls='bad';icon='alert';title='En stock mais périmé : à demander';need++;toAsk.push(c.fuzzy||c.manual?c.name:c.line);
+        detail='Péremption '+fmtExp(byName[0].s.exp);}
+    }else if(bySubs.length){ cls='warn';icon='alert';title='Même principe actif en stock';sim++;
+      const s=bySubs[0].s; detail=`${medName(s)} (${s.qty} boîte${s.qty>1?'s':''}). Vérifiez le dosage avant de renoncer.`;
+    }else{ cls='need';icon='pill';title='À demander';need++;toAsk.push(c.fuzzy||c.manual?c.name:c.line); }
+    const it=document.createElement('div'); it.className='p-item';
+    const ic=document.createElement('span'); ic.className='p-ic '+cls; ic.innerHTML=ico(icon,20);
+    const t=document.createElement('div'); t.className='p-t';
+    const n=document.createElement('strong'); n.textContent=c.name;
+    const s1=document.createElement('span'); s1.textContent=title; s1.className='p-st '+cls;
+    t.append(n,s1);
+    if(detail){const d=document.createElement('span');d.textContent=detail;t.appendChild(d);}
+    const o=document.createElement('span'); o.className='p-o'; o.textContent=(c.manual?'':'Ligne lue : ')+c.line+(c.fuzzy&&c.dist>0?' · lecture incertaine : à confirmer':(c.ok!==true?' · nom à vérifier':'')); t.appendChild(o);
+    it.append(ic,t); list.appendChild(it);
+  });
+  if(!cands.length){const p=document.createElement('p');p.className='hint';p.textContent='Aucun médicament détecté. Essayez une photo plus nette (ordonnance à plat, bien éclairée), ou corrigez le texte lu ci-dessous.';list.appendChild(p);$('pr-text').parentNode.open=true;}
+  const n=cands.length;
+  $('pr-sum').textContent = n ? `${n} médicament${n>1?'s':''} détecté${n>1?'s':''} · ${have} déjà chez vous · ${need} à demander`+(sim?` · ${sim} à vérifier`:'') : '';
+  $('pr-copy').style.display = toAsk.length ? '' : 'none';
+  $('pr-text').value=text;
+  show('v-pres'); pbusy=false;
+}
+$('p-cam').onclick=()=>$('f-cam').click();
+$('p-imp').onclick=()=>$('f-imp').click();
+['f-cam','f-imp'].forEach(id=>$(id).onchange=e=>{const f=e.target.files[0]; e.target.value=''; readPrescription(f);});
+$('dl').innerHTML=DICT.map(d=>'<option value="'+capName(d)+'">').join('');
+$('pr-addbtn').onclick=()=>{const v=$('pr-add').value.trim(); if(v.length<3) return; manual.push({name:v,line:'Ajouté manuellement',manual:true}); $('pr-add').value=''; analyze($('pr-text').value);};
+$('pr-re').onclick=()=>analyze($('pr-text').value);
+$('pr-back').onclick=()=>{$('p-err').textContent='';show('v-presc');};
+$('p-home').onclick=goHome;
+$('pr-home').onclick=goHome;
+$('t-presc').onclick=()=>{$('p-err').textContent='';show('v-presc');};
+$('pr-copy').onclick=async()=>{
+  const txt='À demander :\n'+toAsk.map(x=>'- '+x).join('\n'), b=$('pr-copy'), old=b.innerHTML;
+  try{await navigator.clipboard.writeText(txt);b.textContent='Liste copiée';}catch(e){window.prompt('Copiez la liste :',txt);}
+  setTimeout(()=>{b.innerHTML=old;},1800);
+};
+
+// ---------- Caméra ----------
+let scanning = false, stream = null, camToken = 0, track = null, torchOn = false, zoomOn = false, nTimer = null;
+const vcons = (w,h) => ({facingMode:'environment', width:{ideal:w}, height:{ideal:h}, advanced:[{focusMode:'continuous'}]});
+function camError(){ $('camerr').textContent='Caméra inaccessible. Autorisez-la dans le navigateur ou utilisez la saisie manuelle.'; }
+function stopCam(){
+  scanning=false; camToken++; clearTimeout(nTimer);
+  if(reader){try{reader.reset();}catch(e){} reader=null;}
+  if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null; try{$('video').srcObject=null;}catch(e){}}
+  track=null; torchOn=false; zoomOn=false;
+  ['torch','zoom'].forEach(id=>{$(id).style.display='none';$(id).classList.remove('on');});
+}
+// Réglages de la caméra : mise au point continue, lampe et zoom quand le téléphone les propose
+function tune(t){
+  track=t; if(!t||!t.getCapabilities) return;
+  const c=t.getCapabilities()||{};
+  if(c.focusMode&&c.focusMode.includes('continuous')) t.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+  $('torch').style.display=c.torch?'':'none';
+  $('zoom').style.display=c.zoom?'':'none';
+}
+async function pickDetector(){
+  try{ if('BarcodeDetector' in window){ const f=await BarcodeDetector.getSupportedFormats(); if(f.includes('data_matrix')) return new BarcodeDetector({formats:['data_matrix']}); } }catch(e){}
+  return null;
+}
+async function startCam(){
+  stopCam(); // jamais deux lecteurs en même temps
+  $('camerr').textContent='';
+  const tok=camToken, det=await pickDetector();
+  if(tok!==camToken) return;
+  if(det) startNative(det,tok); else startZXing(tok);
+}
+// Lecteur natif du téléphone (Chrome Android) : très rapide
+async function startNative(det,tok){
+  try{ stream=await navigator.mediaDevices.getUserMedia({video:vcons(1920,1080),audio:false}); }
+  catch(e){ if(tok===camToken) camError(); return; }
+  if(tok!==camToken){ stream.getTracks().forEach(t=>t.stop()); stream=null; return; }
+  const v=$('video'); v.srcObject=stream; try{await v.play();}catch(e){}
+  if(tok!==camToken) return;
+  tune(stream.getVideoTracks()[0]); scanning=true;
+  const tick=async()=>{
+    if(!scanning||tok!==camToken) return;
+    try{ const r=await det.detect(v); if(r.length&&scanning&&tok===camToken){ handle(r[0].rawValue); return; } }catch(e){}
+    nTimer=setTimeout(tick,70);
+  };
+  tick();
+}
+// Lecteur ZXing (iPhone et autres navigateurs)
+function startZXing(tok){
+  if(typeof ZXing==='undefined'){$('camerr').textContent='Lecteur indisponible. Utilisez la saisie manuelle.';return;}
+  try{
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.DATA_MATRIX]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    const r = new ZXing.BrowserMultiFormatReader(hints,100); reader = r; scanning = true; // une tentative de lecture toutes les 100 ms (500 ms par défaut)
+    r.decodeFromConstraints({video:vcons(1280,720)},'video',(res)=>{ if(res && scanning && reader===r) handle(res.getText()); }).catch(camError);
+    let n=0; const wait=setInterval(()=>{
+      const s=$('video').srcObject, t=s&&s.getVideoTracks&&s.getVideoTracks()[0];
+      if(tok!==camToken||n++>40){clearInterval(wait);return;}
+      if(t){clearInterval(wait);tune(t);}
+    },150);
+  }catch(e){camError();}
+}
+$('torch').onclick=()=>{ if(!track) return; torchOn=!torchOn; track.applyConstraints({advanced:[{torch:torchOn}]}).catch(()=>{}); $('torch').classList.toggle('on',torchOn); };
+$('zoom').onclick=()=>{ if(!track) return; const z=track.getCapabilities().zoom; zoomOn=!zoomOn; track.applyConstraints({advanced:[{zoom:zoomOn?Math.min(z.max,Math.max(z.min,2)):z.min}]}).catch(()=>{}); $('zoom').classList.toggle('on',zoomOn); };
+// Toucher l'écran relance la mise au point
+$('camwrap').addEventListener('click',e=>{
+  if(!track||e.target.closest('.cbtn')) return;
+  const r=$('camwrap').getBoundingClientRect(), ring=$('fring');
+  ring.style.left=(e.clientX-r.left)+'px'; ring.style.top=(e.clientY-r.top)+'px'; ring.classList.remove('go'); void ring.offsetWidth; ring.classList.add('go');
+  const c=(track.getCapabilities&&track.getCapabilities())||{}, f=c.focusMode||[], t=track;
+  if(f.includes('single-shot')) t.applyConstraints({advanced:[{focusMode:'single-shot'}]}).then(()=>setTimeout(()=>{ if(track===t) t.applyConstraints({advanced:[{focusMode:f.includes('continuous')?'continuous':'single-shot'}]}).catch(()=>{}); },800)).catch(()=>{});
+});
+
+$('start').onclick = startCam;
+$('hist').onclick = ()=>{stopCam();renderHist();show('v-hist');};
+$('h-back').onclick = ()=>{setMode('control');show('v-scan');startCam();};
+$('h-clear').onclick = ()=>{if(confirm('Effacer tout l’historique ?')){storeHist([]);renderHist();}};
+$('go').onclick = ()=>{const v=$('manual').value.trim(); if(v) handle(v);};
+$('open-q').onclick = ()=>result('open-unknown');
+$('yes').onclick = ()=>{
+  if(step===2) return result('open-bad');
+  if(!drug.ao) return result('open-unknown');           // durée inconnue : prudence
+  if(drug.ao.days===0) return result('open-bad');        // ne se conserve pas après ouverture
+  step=2;
+  $('ask-name').textContent='Notice : « '+drug.ao.sentence.slice(0,220)+(drug.ao.sentence.length>220?'…':'')+' »';
+  $('ask-q').textContent='Est-il ouvert depuis plus de '+drug.ao.label+' ?';
+};
+$('no').onclick = ()=>result(step===2 ? 'open-ok' : 'closed');
+$('again').onclick = ()=>{setColor('');busy=false;show('v-scan');startCam();};
+$('t-control').onclick = ()=>{setMode('control');show('v-scan');startCam();};
+$('t-stock').onclick = ()=>{renderStock();show('v-stock');};
+$('back').onclick = goHome;
+$('s-home').onclick = goHome;
+$('r-home').onclick = goHome;
+$('s-add').onclick = ()=>{setMode('stock');show('v-scan');startCam();};
+$('a-more').onclick = ()=>{busy=false;show('v-scan');startCam();};
+$('a-list').onclick = ()=>{renderStock();show('v-stock');};
+$('a-plus').onclick = ()=>changeQty(lastId,1,it=>{if(it)$('a-qty').textContent=it.qty;});
+$('a-minus').onclick = ()=>changeQty(lastId,-1,it=>{if(it)$('a-qty').textContent=it.qty;else{renderStock();show('v-stock');}});
+updateHome();
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+</script>
+</body>
+</html>
